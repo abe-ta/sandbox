@@ -81,6 +81,12 @@ public class StreamBenchmarkTest {
 
     @Benchmark
     public void multiList_streamBigDecimalToLongSet(Blackhole bh) {
+        bh.consume(data.stream().map(BigDecimal::longValue).collect(Collectors.toSet()));
+        bh.consume(data02.stream().map(BigDecimal::longValue).collect(Collectors.toSet()));
+    }
+
+    @Benchmark
+    public void multiList_streamOfBigDecimalToLongSet(Blackhole bh) {
         bh.consume(
             Stream.of(data, data02)
                 .flatMap(Collection::stream)
@@ -116,7 +122,7 @@ public class StreamBenchmarkTest {
         Options opts = new OptionsBuilder()
             .include(".*")
             .warmupIterations(1)
-            .measurementIterations(3)
+            .measurementIterations(5)
             .jvmArgs("-Xms2g", "-Xmx2g")
             .shouldDoGC(true)
             .forks(1)
