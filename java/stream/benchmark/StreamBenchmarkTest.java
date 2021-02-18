@@ -8,12 +8,10 @@ import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Collection stream と foreach のパフォーマンス比較
@@ -46,63 +44,79 @@ public class StreamBenchmarkTest {
     public int setSize;
 
     public List<BigDecimal> data;
+    public List<BigDecimal> data02;
 
     @Setup
     public void setup() {
         data = new ArrayList<BigDecimal>();
+        data02 = new ArrayList<BigDecimal>();
         for (long i = setSize; i-- > 0; ) {
             data.add(new BigDecimal(i));
+            data02.add(new BigDecimal(i));
         }
     }
 
     @Benchmark
-    public void streamBigDecimalToLongSetBh(Blackhole bh) {
-        data.stream().map(BigDecimal::longValue).forEach(bh::consume);
+    public void singleList_streamBigDecimalToLongSetBh(Blackhole bh) {
+        bh.consume(data.stream().map(BigDecimal::longValue).collect(Collectors.toSet()));
     }
 
     @Benchmark
-    public Set<Long> streamBigDecimalToLongSet() {
-        return data.stream().map(BigDecimal::longValue).collect(Collectors.toSet());
-    }
-
-
-    @Benchmark
-    public void foreachBigDecimalToLongSetBh(Blackhole bh) {
-        for (BigDecimal d : data) {
-            bh.consume(d.longValue());
-        }
-    }
-
-    @Benchmark
-    public Set<Long> foreachBigDecimalToLongSet() {
+    public void singleList_foreachBigDecimalToLongSetBh(Blackhole bh) {
         Set<Long> s = new HashSet<>();
         for (BigDecimal d : data) {
             s.add(d.longValue());
         }
-        return s;
+        bh.consume(s);
     }
 
     @Benchmark
-    public void simpleForBigDecimalToLongSetBh(Blackhole bh) {
-        for (int i = 0; i < setSize; i++) {
-            bh.consume(data.get(i).longValue());
-        }
-    }
-
-    @Benchmark
-    public Set<Long> simpleForBigDecimalToLongSet() {
+    public void singleList_simpleForBigDecimalToLongSetBh(Blackhole bh) {
         Set<Long> s = new HashSet<>();
-        for (int i = 0; i < setSize; i++) {
+        for (int i = 0; i < data.size(); i++) {
             s.add(data.get(i).longValue());
         }
-        return s;
+        bh.consume(s);
+    }
+
+    @Benchmark
+    public void multiList_streamBigDecimalToLongSet(Blackhole bh) {
+        bh.consume(
+            Stream.of(data, data02)
+                .flatMap(Collection::stream)
+                .map(BigDecimal::longValue).collect(Collectors.toSet())
+        );
+    }
+
+    @Benchmark
+    public void multiList_foreachBigDecimalToLongSetBh(Blackhole bh) {
+        Set<Long> s = new HashSet<>();
+        for (BigDecimal d : data) {
+            s.add(d.longValue());
+        }
+        for (BigDecimal d : data02) {
+            s.add(d.longValue());
+        }
+        bh.consume(s);
+    }
+
+    @Benchmark
+    public void multiList_simpleForBigDecimalToLongSetBh(Blackhole bh) {
+        Set<Long> s = new HashSet<>();
+        for (int i = 0; i < data.size(); i++) {
+            s.add(data.get(i).longValue());
+        }
+        for (int i = 0; i < data02.size(); i++) {
+            s.add(data02.get(i).longValue());
+        }
+        bh.consume(s);
     }
 
     public static void main(String... args) throws RunnerException {
         Options opts = new OptionsBuilder()
             .include(".*")
             .warmupIterations(1)
-            .measurementIterations(5)
+            .measurementIterations(3)
             .jvmArgs("-Xms2g", "-Xmx2g")
             .shouldDoGC(true)
             .forks(1)
